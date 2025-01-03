@@ -140,14 +140,12 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeScript(payloadData string, idempotentKey string, name string, scriptPath string) bool {
-	// We do not pass this binary's env or any default env to sh other than WEBEAR related
-	// envs. That's fine cuz /bin/sh would do the necessary and provide good enough env to
-	// the script to start with.
-	env := []string{
+	env := os.Environ()
+	env = append(env,
 		fmt.Sprintf("WEBEAR_DATA=%s", payloadData),
 		fmt.Sprintf("WEBEAR_IDEMPOTENT_KEY=%s", idempotentKey),
 		fmt.Sprintf("WEBEAR_NAME=%s", name),
-	}
+	)
 
 	attr := &syscall.ProcAttr{
 		Dir: filepath.Dir(scriptPath),
