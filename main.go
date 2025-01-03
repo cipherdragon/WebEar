@@ -4,13 +4,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"log"
+	"syscall"
 
 	"encoding/json"
 	"fmt"
 
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -130,24 +130,38 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// We do not pass this binary's env or any default env to sh other than WEBEAR related
-	// envs. That's fine cuz /bin/sh would do the necessary and provide good enough env to
-	// the script to start with.
-	cmd := exec.Command("/bin/sh", scriptPath)
-	cmd.Env = []string{
-		fmt.Sprintf("WEBEAR_DATA=%s", payload.Data),
-		fmt.Sprintf("WEBEAR_IDEMPOTENT_KEY=%s", payload.IdempotentKey),
-		fmt.Sprintf("WEBEAR_NAME=%s", name),
-	}
-
-	if err := cmd.Run(); err != nil {
-		log.Printf("Error executing the script [%s]: %v", scriptPath, err)
+	if !executeScript(payload.Data, payload.IdempotentKey, name, scriptPath) {
 		http.Error(w, "Could not execute the script", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	log.Printf("Webhook [%s] executed successfully", name)
+}
+
+func executeScript(payloadData string, idempotentKey string, name string, scriptPath string) bool {
+	// We do not pass this binary's env or any default env to sh other than WEBEAR related
+	// envs. That's fine cuz /bin/sh would do the necessary and provide good enough env to
+	// the script to start with.
+	env := []string{
+		fmt.Sprintf("WEBEAR_DATA=%s", payloadData),
+		fmt.Sprintf("WEBEAR_IDEMPOTENT_KEY=%s", idempotentKey),
+		fmt.Sprintf("WEBEAR_NAME=%s", name),
+	}
+
+	attr := &syscall.ProcAttr{
+		Dir: filepath.Dir(scriptPath),
+		Env: env,
+		Files: []uintptr{0, 1, 2},
+	}
+
+	_, err := syscall.ForkExec("/bin/sh", []string{"/bin/sh", scriptPath}, attr)
+	if err != nil {
+		log.Printf("Error executing the script [%s]: %v", scriptPath, err)
+		return false
+	}
+
+	return true
 }
 
 func main() {
