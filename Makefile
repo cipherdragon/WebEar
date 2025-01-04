@@ -11,6 +11,9 @@ all: test build
 
 build: $(DIST_DIR)
 	$(GOBUILD) -o $(DIST_DIR)/$(BINARY_NAME) -v
+	cp install.sh $(DIST_DIR)/install.sh
+	chmod +x $(DIST_DIR)/install.sh
+	cp uninstall.sh $(DIST_DIR)/uninstall.sh
 
 clean:
 	$(GOCLEAN)
