@@ -178,7 +178,7 @@ func executeScript(payloadData string, idempotentKey string, name string, script
 	attr := &syscall.ProcAttr{
 		Dir: filepath.Dir(scriptPath),
 		Env: env,
-		Files: []uintptr{0, 1, 2},
+		Files: []uintptr{uintptr(0), 1, 2}, // stdin -> nil
 		Sys: &syscall.SysProcAttr{
 			Credential: &syscall.Credential{
 				Uid: uint32(uid),
