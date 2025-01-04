@@ -4,6 +4,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"log"
+	"os/user"
+	"strconv"
 	"syscall"
 
 	"encoding/json"
@@ -21,6 +23,7 @@ import (
 type ListenerConfig struct {
 	Script string `toml:"script"`
 	Secret string `toml:"secret"`
+	User   string `toml:"user"`
 }
 
 type Config struct {
@@ -130,7 +133,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !executeScript(payload.Data, payload.IdempotentKey, name, scriptPath) {
+	if !executeScript(payload.Data, payload.IdempotentKey, name, scriptPath, listenerConfig.User) {
 		http.Error(w, "Could not execute the script", http.StatusInternalServerError)
 		return
 	}
@@ -139,21 +142,52 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Webhook [%s] executed successfully", name)
 }
 
-func executeScript(payloadData string, idempotentKey string, name string, scriptPath string) bool {
-	env := os.Environ()
-	env = append(env,
+func executeScript(payloadData string, idempotentKey string, name string, scriptPath string, username string) bool {
+	if username == "" {
+		log.Printf("User must be provided to execute the script [%s]", scriptPath)
+		return false
+	}
+
+	targetUser, err := user.Lookup(username)
+	if err != nil {
+		log.Printf("[%s] Could not resolve user [%s]: %v", name, username, err)
+		return false
+	}
+
+	uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
+	if err != nil {
+		log.Printf("[%s] Could not parse user id [%s]: %v", name, targetUser.Uid, err)
+		return false
+	}
+
+	gid, err := strconv.ParseUint(targetUser.Gid, 10, 32)
+	if err != nil {
+		log.Printf("[%s] Could not parse group id [%s]: %v", name, targetUser.Gid, err)
+		return false
+	}
+
+	env := []string{
 		fmt.Sprintf("WEBEAR_DATA=%s", payloadData),
 		fmt.Sprintf("WEBEAR_IDEMPOTENT_KEY=%s", idempotentKey),
 		fmt.Sprintf("WEBEAR_NAME=%s", name),
-	)
+		fmt.Sprintf("HOME=%s", targetUser.HomeDir),
+		fmt.Sprintf("USER=%s", targetUser.Username),
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	}
 
 	attr := &syscall.ProcAttr{
 		Dir: filepath.Dir(scriptPath),
 		Env: env,
 		Files: []uintptr{0, 1, 2},
+		Sys: &syscall.SysProcAttr{
+			Credential: &syscall.Credential{
+				Uid: uint32(uid),
+				Gid: uint32(gid),
+			},
+		},
 	}
 
-	_, err := syscall.ForkExec("/bin/sh", []string{"/bin/sh", scriptPath}, attr)
+	_, err = syscall.ForkExec("/bin/sh", []string{"/bin/sh", scriptPath}, attr)
 	if err != nil {
 		log.Printf("Error executing the script [%s]: %v", scriptPath, err)
 		return false
