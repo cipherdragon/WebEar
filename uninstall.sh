@@ -19,7 +19,7 @@ systemctl disable "${SERVICE_NAME}" || true
 # Remove files
 rm -f "${SERVICE_PATH}"
 rm -f "${BINARY_PATH}"
-rm -rf "${CONFIG_DIR}"
+# rm -rf "${CONFIG_DIR}"
 
 # Reload systemd
 systemctl daemon-reload
