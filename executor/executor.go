@@ -7,9 +7,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+
+	"webear/executor/reaper"
 )
 
 func ExecuteScript(payload string, name string, scriptPath string, username string) error {
+	reaper.WakeUpReaper()
+
 	if username == "" {
 		err := fmt.Sprintf("User must be provided to execute the script [%s]", scriptPath)
 		return errors.New(err)
@@ -53,11 +57,13 @@ func ExecuteScript(payload string, name string, scriptPath string, username stri
 		},
 	}
 
-	_, err = syscall.ForkExec("/bin/sh", []string{"/bin/sh", scriptPath}, attr)
+	pid, err := syscall.ForkExec("/bin/sh", []string{"/bin/sh", scriptPath}, attr)
 	if err != nil {
 		err := fmt.Sprintf("Error executing the script [%s]: %v", scriptPath, err)
 		return errors.New(err)
 	}
+
+	reaper.RecordToReap(pid)
 
 	return nil
 }
