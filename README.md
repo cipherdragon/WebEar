@@ -33,6 +33,24 @@ Once built, output goes to `./dist` directory. There you find the `install.sh`
 script and `uninstall.sh` script, and of cause the binary `webear`. Run the
 intallation script as `root`
 
+**NOTE**: Installation script has a part which creates a SELinux Context for the
+binary. If not applicable for your situation, you may remove (or comment out) that
+part from the installation script.
+
+Comment out the following part.
+
+```shell
+# Set correct SELinux context
+echo_step "Configuring SELinux..."
+if command -v semanage &> /dev/null; then
+    semanage fcontext -a -t bin_t "${BINARY_PATH}"
+    restorecon -v "${BINARY_PATH}"
+else
+    echo_error "SELinux tools not found. Please install policycoreutils-python-utils"
+    exit 1
+fi
+```
+
 ## Usage
 
 A proper installation with the `install.sh` script should create a systemd service,
