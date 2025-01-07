@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+![WebEar Logo](./banner.jpg)
+
 ## Description
 
 WebEar is a simple Web hook listener written in Go. All it does is keep listening
