@@ -11,7 +11,7 @@ import (
 	"webear/executor/reaper"
 )
 
-func ExecuteScript(payload string, name string, scriptPath string, username string) error {
+func executeScript(payload string, name string, scriptPath string, username string) error {
 	reaper.WakeUpReaper()
 
 	if username == "" {

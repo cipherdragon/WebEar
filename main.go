@@ -131,15 +131,10 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := executor.ExecuteScript(payload.Data, name, scriptPath, listenerConfig.User)
-	if err != nil {
-		http.Error(w, "Could not execute the script", http.StatusInternalServerError)
-		log.Println(err.Error())
-		return
-	}
+	executor.ExecuteScript(payload.Data, name, scriptPath, listenerConfig.User)
 
 	w.WriteHeader(http.StatusOK)
-	log.Printf("Webhook [%s] executed successfully", name)
+	log.Printf("Webhook [%s] listed to execute", name)
 }
 
 func main() {
